@@ -1,0 +1,1 @@
+web: gunicorn childrenhelthcare.wsgi --log-file -
