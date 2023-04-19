@@ -43,8 +43,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    # 'knox',
-    # 'django_rest_passwordreset',
     'rest_framework.authtoken',
     'social_django',
     'corsheaders', 
@@ -176,10 +174,10 @@ LOGOUT_REDIRECT_URL = '/Viewsets/Sections'
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_HOST_USER = 'a.01092664268@gmail.com'
-EMAIL_HOST_PASSWORD = 'gpeeoszpjrrqsanm'
+EMAIL_HOST_PASSWORD = 'dqxdkhluxynynfts'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 DEFAULT_FROM_EMAIL = 'default from email'

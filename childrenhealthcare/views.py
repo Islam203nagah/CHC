@@ -24,14 +24,17 @@ from rest_framework.decorators import api_view,action,permission_classes
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from django.core.mail import EmailMessage
-
+import pdb
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = User.objects.filter(is_staff=False)
     serializer_class = UserSerializer
 
+
+
 @api_view(['POST'])
 def loginuser(request):
+    # pdb.set_trace()
     username=request.data["username"]
     password=request.data["password"]
     if username is None:
@@ -43,7 +46,7 @@ def loginuser(request):
     if user_data.first().email_verified:
         loguser = authenticate(username=username, password=password)
         if not loguser:
-            return Response({"Error":"username or password not existing"})
+            return Response({"Error":"username or password not existing"},status=status.HTTP_404_NOT_FOUND)
         login(request, loguser)
         userID=User.objects.filter(username=username).first().pk
         uchild=UserData.objects.filter(user=userID).first().child_age
@@ -54,14 +57,13 @@ def loginuser(request):
     else:
         return Response({'error': 'Please verify your email address before logging in.'}, status=status.HTTP_400_BAD_REQUEST)
 
-# import pdb
+
 @api_view(['POST'])
 def register(request):
-    # pdb.set_trace()
+
     username = request.data['username']
     password=request.data['password']
     email = request.data['email']
-    print(email)
     if username =='' or password =='':
         return Response({"Error1":"you can't register with empty username or password"},
                         status=status.HTTP_400_BAD_REQUEST)
@@ -102,15 +104,19 @@ def register(request):
 @api_view(['POST'])
 def verify_email(request):
     code = request.data["code"]
-    user_data = UserData.objects.filter(code_verification=code).first()
-    if not user_data:
-        return Response({'error': 'Invalid verification code.'}, status=status.HTTP_400_BAD_REQUEST)
+    # pdb.set_trace()
+    if code=='':
+        return Response({'error':'please enter code that send to your email'},status=status.HTTP_400_BAD_REQUEST)
+    else:
+        user_data = UserData.objects.filter(code_verification=code).first()
+        if not user_data:
+            return Response({'error': 'Invalid verification code.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    user_data.email_verified = True
-    user_data.code_verification = ''
-    user_data.save()
+        user_data.email_verified = True
+        user_data.code_verification = ''
+        user_data.save()
 
-    return Response({'message': 'Email address verified.'})
+        return Response({'message': 'Email address verified.'})
 # @api_view(['POST'])
 # def register(request):
 #     username = request.data.get('username')
@@ -136,9 +142,11 @@ def logout_user(request):
 @api_view(['POST'])
 def reset_password(request):
     email = request.data.get('email')
+    if email=='':
+        return Response({'error':'please enter a valid email'},status=status.HTTP_404_NOT_FOUND)
     user = User.objects.filter(email=email).first()
     if not user:
-        return Response({'error': 'No user found with the provided email.'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'No user found with the provided email.'}, status=status.HTTP_404_NOT_FOUND)
 
     # Generate reset password code and send reset password email
     code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
@@ -150,24 +158,29 @@ def reset_password(request):
     email_message = EmailMessage(subject, message, to=[user.email])
     email_message.send()
 
-    return Response({'message': 'Reset password code sent to your email address.'})
+    return Response({'message': 'Reset password code sent to your email address.'} ,status=status.HTTP_200_OK)
 
 @api_view(['POST'])
 def reset_password_confirm(request):
     code = request.data.get('code')
     password = request.data.get('password')
+    if code=='' or (password=='' and not re.match(r'^[A-Za-z0-9@#$%^&+=]*$', password) or len(password) < 8):
+        return Response({'error':'please enter code that send to your email, and reset valid Password must be at least 8 characters long,and alphabet and numbers and not contain spaces.'}, 
+                        status=status.HTTP_400_BAD_REQUEST)
+   
+    else:
+        # pdb.set_trace()
+        userverfiy = UserData.objects.filter(code_verification=code).first()
+        if not userverfiy:
+            return Response({'error': 'Invalid reset password code.'}, status=status.HTTP_400_BAD_REQUEST)
+        user=User.objects.filter(username=userverfiy).first()
 
-    userverfiy = UserData.objects.filter(code_verification=code).first().user
-    if not userverfiy:
-        return Response({'error': 'Invalid reset password code.'}, status=status.HTTP_400_BAD_REQUEST)
-    user=User.objects.filter(username=userverfiy).first()
+        user.set_password(password)
+        userverfiy.code_verification = ''
+        userverfiy.save()
+        user.save()
 
-    user.set_password(password)
-    userverfiy.code_verification = ''
-    userverfiy.save()
-    user.save()
-
-    return Response({'message': 'Password reset successfully.'})
+        return Response({'message': 'Password reset successfully.'})
 
 
 #@psa():It connects our view with python-social-auth and adds details to the request object.
@@ -195,15 +208,6 @@ def register_by_google(request, backend):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-# @api_view(['GET', 'POST'])
-# def authentication_test(request):
-#     print(request.user)
-#     return Response(
-#         {
-#             'message': "User successfully authenticated"
-#         },
-#         status=status.HTTP_200_OK,
-#     )
 
 class SectionViewSet(viewsets.ReadOnlyModelViewSet):
     queryset= TbSections.objects.all()
