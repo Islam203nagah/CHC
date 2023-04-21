@@ -25,7 +25,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from django.core.mail import EmailMessage
 import pdb
-
+from .permissions import NoDownloadPermission
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = User.objects.filter(is_staff=False)
     serializer_class = UserSerializer
@@ -292,7 +292,7 @@ class ArticleViewSet(viewsets.ReadOnlyModelViewSet):
 class VideoViewSet(viewsets.ReadOnlyModelViewSet):
     queryset=Videos.objects.all()
     serializer_class=VideoSerializer
-    permission_classes=[IsAuthenticatedOrReadOnly,]
+    permission_classes=[IsAuthenticatedOrReadOnly,NoDownloadPermission]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     search_fields = ['video_name']
     @action(detail=False, methods=['get'])
