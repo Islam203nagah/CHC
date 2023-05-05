@@ -29,7 +29,7 @@ SECRET_KEY = 'django-insecure-h=lg=b67yj$grv0_rkt7q-d08u-(@=5#0+k2$r@0j!orn#4yx(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 # DEBUG = config('DEBUG')
-ALLOWED_HOSTS = ['127.0.0.1','.localhost', 'childrenhelthcare.herokuapp.com']
+ALLOWED_HOSTS = ['*']
 # ALLOWED_HOSTS = []
 
 
@@ -62,13 +62,14 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-CORS_ALLOWED_ORIGINS = [
-        "https://example.com",
-        "https://sub.example.com",
-        "http://localhost:8080",
-        "http://127.0.0.1:9000"
-    ]
-
+# CORS_ALLOWED_ORIGINS = [
+#         "https://example.com",
+#         "https://sub.example.com",
+#         "http://localhost:8080",
+#         "http://127.0.0.1:9000"
+#     ]
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 ROOT_URLCONF = 'project.urls'
 
 REST_FRAMEWORK={'DEFAULT_AUTHENTICATION_CLASSES': 
@@ -165,8 +166,8 @@ LANGUAGES = [
 
 STATIC_URL = 'static/'
 # STATICFILES_DIRS=[os.path.join(BASE_DIR,'static'),]
-# MEDIA_URL = 'media/'
-MEDIA_URL = 'https://storage.googleapis.com/your-bucket-name/'
+MEDIA_URL = 'media/'
+# MEDIA_URL = ''
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 LOGIN_URL = '/login'
 LOGOUT_REDIRECT_URL = '/Viewsets/Sections'

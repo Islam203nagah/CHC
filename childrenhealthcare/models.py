@@ -72,6 +72,9 @@ class Videos(models.Model):
     video_name = models.CharField(verbose_name=_('Video Name'),max_length=255)
     category = models.ForeignKey(Category,on_delete=models.CASCADE,blank=True, null=True)
     video_path = models.FileField(verbose_name=_('Video'),max_length=255,upload_to='Videos/')
+    created_by=models.ForeignKey(User,verbose_name=_('Created By'),on_delete=models.CASCADE,null=True,blank=True)
+    created_date=models.DateTimeField(verbose_name=_("Created Date"),auto_now_add=True,null=True,blank=True)
+    verified_video=models.BooleanField(default=False)
     class Meta:
 
 
@@ -85,7 +88,7 @@ class Videos(models.Model):
 class Subtitles(models.Model):
     video_ID = models.ForeignKey(Videos,on_delete=models.CASCADE,blank=True, null=True)
     subtitle_name=models.CharField(max_length=255,blank=True, null=True)
-    subtitle = models.FileField(verbose_name=_('Subtitle'),max_length=255,upload_to='Subtitle/', blank=True, null=True)
+    subtitle = models.FileField(verbose_name=_('Subtitle'),max_length=255,upload_to='Subtitles/', blank=True, null=True)
 
     class Meta:
         verbose_name=_('Subtitle')

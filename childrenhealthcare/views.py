@@ -26,7 +26,9 @@ from rest_framework import filters
 from django.core.mail import EmailMessage
 import pdb
 from .permissions import NoDownloadPermission
-class UserViewSet(viewsets.ReadOnlyModelViewSet):
+import json
+from django.conf import settings
+class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.filter(is_staff=False)
     serializer_class = UserSerializer
 
@@ -34,78 +36,135 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
 
 @api_view(['POST'])
 def loginuser(request):
-    # pdb.set_trace()
-    username=request.data["username"]
-    password=request.data["password"]
-    if username is None:
-        return Response({"Error": "User not found"})
-    user=User.objects.filter(username=username).first().pk
+    data = json.loads(request.body)
+    username=data.get("username")
+    password=data.get("password")
+    if username is None or username=='':
+        return Response({"error": "User not found"})
+    user=User.objects.filter(username=username).first()
 
-    user_data=UserData.objects.filter(user=user)
-
-    if user_data.first().email_verified:
+    user_data=UserData.objects.filter(user=user).first()
+    try:
+        # pdb.set_trace()
+        user_data.email_verified
+    except AttributeError:
+        return Response({'error': 'you are not register before.'}, status=status.HTTP_404_NOT_FOUND)
+    if user_data.email_verified==True:
         loguser = authenticate(username=username, password=password)
         if not loguser:
-            return Response({"Error":"username or password not existing"},status=status.HTTP_404_NOT_FOUND)
+            return Response({"error":"username or password not existing"},status=status.HTTP_404_NOT_FOUND)
         login(request, loguser)
         userID=User.objects.filter(username=username).first().pk
         uchild=UserData.objects.filter(user=userID).first().child_age
-        if uchild:
+        if not uchild==''and uchild is not None and str(uchild).isalpha():
             Section_Name = TbSections.objects.filter(child_age=uchild).first().section_name
-            return Response({'msg': 'User Login successfully','section_choice': Section_Name})
-        else: return Response({'msg': 'User Login successfully'})
+            return Response({'message': 'User Login successfully','section_choice': Section_Name})
+        else: return Response({'message': 'User Login successfully'})
     else:
         return Response({'error': 'Please verify your email address before logging in.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
+
 @api_view(['POST'])
 def register(request):
-
-    username = request.data['username']
-    password=request.data['password']
-    email = request.data['email']
-    if username =='' or password =='':
-        return Response({"Error1":"you can't register with empty username or password"},
+    # pdb.set_trace()
+    data = json.loads(request.body)
+    username = data.get('username')
+    password = data.get('password')
+    email = data.get('email')
+    if username is None or username=='' or password is None or password=='':
+        return Response({"error": "you can't register with empty username or password"},
                         status=status.HTTP_400_BAD_REQUEST)
-    elif  email =='':
-        return Response({'Error': 'Please enter your email to can log in'},
+    elif email is None or email=='':
+        return Response({'error': 'Please enter your email to can log in'},
                         status=status.HTTP_400_BAD_REQUEST)
     elif (len(username) < 5) or not str(username).isalnum():
-        return Response({'Error': 'Username must be at least 5 characters long,and alphabet and numbers and not contain spaces.'},
+        return Response({'error': 'Username must be at least 5 characters long,and contain alphabet , numbers and not contain spaces.'},
                         status=status.HTTP_400_BAD_REQUEST)
-    elif not re.match(r'^[A-Za-z0-9@#$%^&+=]*$', password) or len(password) < 8:
-            return Response({'Error': 'Password must be at least 8 characters long,and alphabet and numbers and not contain spaces.'},
+    elif not re.match(r"^(?=.*[A-Z])[A-Za-z0-9@#$%^&+=]*$", password) or len(password) < 8:
+            return Response({'error': 'Password must be at least 8 characters long , and start with capital letter contain alphabet , numbers , special character and not contain spaces.'},
                             status=status.HTTP_400_BAD_REQUEST)
     else:
-        serializer = RegisterUserSerializer(data = {
-        'username': request.data['username'],
-        'password': request.data['password'],
-        'email': request.data['email']})
+        serializer = RegisterUserSerializer(data={
+            'username': username,
+            'password': password,
+            'email': email
+        })
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         # Generate verification code and send verification email
         code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
-        user_data=UserData.objects.filter(user=user.pk).first()
-        user_data.code_verification=code
+        user_data = UserData.objects.filter(user=user.pk).first()
+        user_data.code_verification = code
         user_data.save()
         subject = 'Verify Your Email Address'
         message = f'Please enter the following code to verify your email address: {code}'
         email_message = EmailMessage(subject, message, to=[user.email])
         email_message.send()
-
-        if request.data.get('child_age'):
-            user_data.child_age=request.data['child_age']
+        print("child_age",)
+        int_childage=int(data.get('child_age'))
+        bool_childage=bool(data.get('child_age'))
+        float_childage=float(data.get('child_age'))
+        complex_childage=complex(data.get('child_age'))
+        if data.get('child_age') is not None and not data.get('child_age')==''and isinstance(data.get('child_age'), str) and not isinstance(int_childage,int) and not isinstance(bool_childage,bool) and not isinstance(float_childage,float) and not isinstance(complex_childage,complex):
+            user_data.child_age = data['child_age']
             user_data.save()
-            return Response({"message": 'User created successfully,we send code to your email Please Verify your email'})
+            return Response({"message": 'User created successfully,we send code to your email Please Verify your email'},
+                            status=status.HTTP_201_CREATED)
         else:
-            return Response({"message": 'User created successfully,we send code to your email Please Verify your email'})
+            return Response({"message": 'User created successfully,we send code to your email Please Verify your email'},
+                            status=status.HTTP_201_CREATED)
+
+
+# @api_view(['POST'])
+# def register(request):
+#     # pdb.set_trace()
+#     username = request.POST.get('username')
+#     print('username',username)
+#     password=request.POST.get('password')
+#     email =request.POST.get('email')
+#     if username ==None or password ==None:
+#         return Response({"Error1":"you can't register with empty username or password"},
+#                         status=status.HTTP_400_BAD_REQUEST)
+#     elif  email ==None:
+#         return Response({'Error': 'Please enter your email to can log in'},
+#                         status=status.HTTP_400_BAD_REQUEST)
+#     elif (len(username) < 5) or not str(username).isalnum():
+#         return Response({'Error': 'Username must be at least 5 characters long,and contain alphabet , numbers and not contain spaces.'},
+#                         status=status.HTTP_400_BAD_REQUEST)
+#     elif not re.match(r"^(?=.*[A-Z])[A-Za-z0-9@#$%^&+=]*$", password) or len(password) < 8:
+#             return Response({'Error': 'Password must be at least 8 characters long , and start with capital letter contain alphabet , numbers , special character and not contain spaces.'},
+#                             status=status.HTTP_400_BAD_REQUEST)
+#     else:
+#         serializer = RegisterUserSerializer(data = {
+#         'username': request.data['username'],
+#         'password': request.data['password'],
+#         'email': request.data['email']})
+#         serializer.is_valid(raise_exception=True)
+#         user = serializer.save()
+#         # Generate verification code and send verification email
+#         code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+#         user_data=UserData.objects.filter(user=user.pk).first()
+#         user_data.code_verification=code
+#         user_data.save()
+#         subject = 'Verify Your Email Address'
+#         message = f'Please enter the following code to verify your email address: {code}'
+#         email_message = EmailMessage(subject, message, to=[user.email])
+#         email_message.send()
+#         if not request.data.get('child_age') == None:
+#             user_data.child_age=request.data['child_age']
+#             user_data.save()
+#             return Response({"message": 'User created successfully,we send code to your email Please Verify your email'},status=status.HTTP_201_CREATED)
+#         else:
+#             return Response({"message": 'User created successfully,we send code to your email Please Verify your email'},status=status.HTTP_201_CREATED)
 
 
 @api_view(['POST'])
 def verify_email(request):
-    code = request.data["code"]
+    data = json.loads(request.body)
+    code = data.get("code")
     # pdb.set_trace()
-    if code=='':
+    if code==None or code=='':
         return Response({'error':'please enter code that send to your email'},status=status.HTTP_400_BAD_REQUEST)
     else:
         user_data = UserData.objects.filter(code_verification=code).first()
@@ -141,9 +200,11 @@ def logout_user(request):
 
 @api_view(['POST'])
 def reset_password(request):
-    email = request.data.get('email')
-    if email=='':
-        return Response({'error':'please enter a valid email'},status=status.HTTP_404_NOT_FOUND)
+    data = json.loads(request.body)
+    email =data.get('email')
+    if email is None or email=='':
+        return Response({'error': 'Please enter your email to send email to can reset your password'},
+                        status=status.HTTP_400_BAD_REQUEST)
     user = User.objects.filter(email=email).first()
     if not user:
         return Response({'error': 'No user found with the provided email.'}, status=status.HTTP_404_NOT_FOUND)
@@ -162,12 +223,13 @@ def reset_password(request):
 
 @api_view(['POST'])
 def reset_password_confirm(request):
-    code = request.data.get('code')
+    data = json.loads(request.body)
+    code = data.get('code')
     password = request.data.get('password')
-    if code=='' or (password=='' and not re.match(r'^[A-Za-z0-9@#$%^&+=]*$', password) or len(password) < 8):
-        return Response({'error':'please enter code that send to your email, and reset valid Password must be at least 8 characters long,and alphabet and numbers and not contain spaces.'}, 
+    if code=='' or code is None or (password=='' and not re.match(r'^(?=.*[A-Z])[A-Za-z0-9@#$%^&+=]*$', password) or password is None or len(password) < 8):
+        return Response({'error':'please enter code that send to your email,, and start with capital letter contain alphabet , numbers , special character and not contain spaces.'},
                         status=status.HTTP_400_BAD_REQUEST)
-   
+
     else:
         # pdb.set_trace()
         userverfiy = UserData.objects.filter(code_verification=code).first()
@@ -182,32 +244,31 @@ def reset_password_confirm(request):
 
         return Response({'message': 'Password reset successfully.'})
 
-
 #@psa():It connects our view with python-social-auth and adds details to the request object.
 @api_view(['POST'])
 @permission_classes([AllowAny])
 @psa()
 def register_by_google(request, backend):
-    token = request.data.get('access_token')
+    data = json.loads(request.body)
+    token = data.get('access_token')
     user = request.backend.do_auth(token)
     if user:
         login(request, user) # log in the user
         return Response(
             {
-                'success': 'User authenticated and registered successfully.'
+                'message': 'User authenticated and registered successfully.'
             },
             status=status.HTTP_200_OK,
         )
     else:
         return Response(
             {
-                'errors': {
+                'error': {
                     'token': 'Invalid token'
                     }
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
-
 
 class SectionViewSet(viewsets.ReadOnlyModelViewSet):
     queryset= TbSections.objects.all()
@@ -289,12 +350,26 @@ class ArticleViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(data)
 
 
-class VideoViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset=Videos.objects.all()
+class VideoViewSet(viewsets.ModelViewSet):
+    queryset=Videos.objects.filter(verified_video=True)
     serializer_class=VideoSerializer
     permission_classes=[IsAuthenticatedOrReadOnly,NoDownloadPermission]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     search_fields = ['video_name']
+    
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data={'video_name':request.data['video_name'],
+                                               'category':request.data['category'],
+                                               'video_path':request.data['video_path']
+                                               })
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        targetvideo=Videos.objects.filter(video_name=request.data['video_name']).first()
+        targetvideo.created_by=request.user
+        targetvideo.save()
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+    
     @action(detail=False, methods=['get'])
     def CategoryById(self, request):
         category_id = request.query_params.get('category')
@@ -308,6 +383,17 @@ class VideoViewSet(viewsets.ReadOnlyModelViewSet):
             'videos': serializer.data
         }
         return Response(data)
+
+# class VideoViewSetToCUD(viewsets.ModelViewSet):
+#     queryset=Videos.objects.filter(verified_video=True)
+#     serializer_class=VideoSerializer
+#     permission_classes=[IsAuthenticated,]
+#     # def retrieve(self, request, *args, **kwargs):
+#     #     return Response({'Error':"you can't Get from this api"})
+#     # def list(self, request, *args, **kwargs):
+#     #     return Response({'Error':"you can't Get from this api"})
+
+
 
 class SubtitlesViewSet(viewsets.ReadOnlyModelViewSet):
     queryset=Subtitles.objects.all()
@@ -360,3 +446,8 @@ class ReviewApi(APIView):
             return Response(rev.data, status=status.HTTP_200_OK)
         else:
             return Response(rev.errors, status=status.HTTP_200_OK)
+        
+        
+        
+
+

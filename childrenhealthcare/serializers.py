@@ -12,7 +12,7 @@ from .models import (TbSections,
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ("username", "email")
+        fields = ("id","username", 'password',"email")
         extra_kwargs = {"password": {"write_only": True}}
 
 
@@ -92,10 +92,15 @@ class VideoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model= Videos
-        fields= '__all__'
+        fields= ('id','video_name','category','video_path')
+
+
 
 class SubtitlesSerializer(serializers.ModelSerializer):
 
     class Meta:
         model= Subtitles
         fields= '__all__'
+        
+
+

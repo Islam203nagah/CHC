@@ -12,8 +12,8 @@ from childrenhealthcare.models import (Review,
                                        UserData)
 
 # Register your models here.
-admin.site.site_header='Cildern Health Care'
-admin.site.site_title='Cildern Health Care'
+admin.site.site_header='Childern Health Care'
+admin.site.site_title='Childern Health Care'
 class Inlindata1(admin.StackedInline):
     model=TbSections
     extra=1
@@ -63,7 +63,7 @@ class ArticlesAdmin(admin.ModelAdmin):
 
 
 class VideosAdmin(admin.ModelAdmin):
-    list_filter=("video_name",)
+    list_filter=("verified_video",)
     search_fields=('article_name',)
     inlines=[InlindataSubtitles]
     
