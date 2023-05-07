@@ -56,10 +56,13 @@ def loginuser(request):
         login(request, loguser)
         userID=User.objects.filter(username=username).first().pk
         uchild=UserData.objects.filter(user=userID).first().child_age
-        if not uchild==''and uchild is not None and str(uchild).isalpha():
-            Section_Name = TbSections.objects.filter(child_age=uchild).first().section_name
-            return Response({'message': 'User Login successfully','section_choice': Section_Name})
-        else: return Response({'message': 'User Login successfully'})
+        if not uchild==''and uchild is not None:
+            try:
+                Section_Name = TbSections.objects.filter(child_age=uchild).first().section_name
+                return Response({'message': 'User Login successfully','section_choice': Section_Name},status=status.HTTP_202_ACCEPTED)
+            except AttributeError:
+                pass
+        else: return Response({'message': 'User Login successfully'},status=status.HTTP_202_ACCEPTED)
     else:
         return Response({'error': 'Please verify your email address before logging in.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -72,6 +75,7 @@ def register(request):
     username = data.get('username')
     password = data.get('password')
     email = data.get('email')
+    valid_password= re.match(r'^(?=.*[A-Z])[A-Za-z0-9@#$%^&+=]*$', password) if True else False
     if username is None or username=='' or password is None or password=='':
         return Response({"error": "you can't register with empty username or password"},
                         status=status.HTTP_400_BAD_REQUEST)
@@ -81,10 +85,11 @@ def register(request):
     elif (len(username) < 5) or not str(username).isalnum():
         return Response({'error': 'Username must be at least 5 characters long,and contain alphabet , numbers and not contain spaces.'},
                         status=status.HTTP_400_BAD_REQUEST)
-    elif not re.match(r"^(?=.*[A-Z])[A-Za-z0-9@#$%^&+=]*$", password) or len(password) < 8:
+    elif not valid_password or len(password) < 8:
             return Response({'error': 'Password must be at least 8 characters long , and start with capital letter contain alphabet , numbers , special character and not contain spaces.'},
                             status=status.HTTP_400_BAD_REQUEST)
     else:
+
         serializer = RegisterUserSerializer(data={
             'username': username,
             'password': password,
@@ -92,6 +97,7 @@ def register(request):
         })
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+            
         # Generate verification code and send verification email
         code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
         user_data = UserData.objects.filter(user=user.pk).first()
@@ -101,12 +107,7 @@ def register(request):
         message = f'Please enter the following code to verify your email address: {code}'
         email_message = EmailMessage(subject, message, to=[user.email])
         email_message.send()
-        print("child_age",)
-        int_childage=int(data.get('child_age'))
-        bool_childage=bool(data.get('child_age'))
-        float_childage=float(data.get('child_age'))
-        complex_childage=complex(data.get('child_age'))
-        if data.get('child_age') is not None and not data.get('child_age')==''and isinstance(data.get('child_age'), str) and not isinstance(int_childage,int) and not isinstance(bool_childage,bool) and not isinstance(float_childage,float) and not isinstance(complex_childage,complex):
+        if data.get('child_age') is not None and not data.get('child_age')==''and isinstance(data.get('child_age'), str):
             user_data.child_age = data['child_age']
             user_data.save()
             return Response({"message": 'User created successfully,we send code to your email Please Verify your email'},
@@ -226,8 +227,11 @@ def reset_password_confirm(request):
     data = json.loads(request.body)
     code = data.get('code')
     password = request.data.get('password')
-    if code=='' or code is None or (password=='' and not re.match(r'^(?=.*[A-Z])[A-Za-z0-9@#$%^&+=]*$', password) or password is None or len(password) < 8):
-        return Response({'error':'please enter code that send to your email,, and start with capital letter contain alphabet , numbers , special character and not contain spaces.'},
+    valid_password= re.match(r'^(?=.*[A-Z])[A-Za-z0-9@#$%^&+=]*$', password) if True else False
+    if code=='' or code is None:
+        return Response({'error':'please enter code that send to your email'},status=status.HTTP_400_BAD_REQUEST)
+    elif (password=='' and not valid_password or password is None or len(password) < 8):
+        return Response({'error':'password must be at least 8 characters long , contain at least  one capital letter contain alphabet , numbers , special character and not contain spaces.'},
                         status=status.HTTP_400_BAD_REQUEST)
 
     else:
